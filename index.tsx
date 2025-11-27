@@ -1,3 +1,14 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './styles.css';
 
-// This file is kept to satisfy the build environment but is not used in the standalone vanilla JS version.
-console.log("PolyWave Studio: Running in Standalone Mode. React mounting skipped.");
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
