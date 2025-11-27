@@ -1,9 +1,20 @@
-Per utilizzarli su Raspberry Pi:
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Copia questi file nella cartella raspberry del tuo progetto.
+# Run and deploy your AI Studio app
 
-Rendi eseguibili gli script con chmod +x raspberry/server.sh raspberry/start-synth.sh.
+This contains everything you need to run your app locally.
 
-Installa Node.js e Chromium (sudo apt install nodejs npm chromium-browser se non presenti).
+View your app in AI Studio: https://ai.studio/apps/drive/15SMzFaOrcLzNJM5S47L-hGUigiKKZvOR
 
-Avvia il synth con ./raspberry/start-synth.sh (o crea un servizio di systemd per l’avvio automatico).
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

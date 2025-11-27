@@ -1,41 +1,249 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PolySynth Web</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyWave Studio - Standalone</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        margin: 0;
-        overflow-x: hidden;
-      }
-      /* Custom scrollbar for better aesthetics */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #0f172a; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #334155; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #475569; 
-      }
-    </style>
-  <script type="importmap">
+    <link rel="stylesheet" href="styles.css">
+<script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/"
   }
 }
 </script>
 </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<body class="bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/30 pb-20 overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="p-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-30 flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                POLYWAVE STUDIO
+            </h1>
+            <p class="text-slate-500 text-xs hidden sm:block">Standalone Polyphonic Workstation</p>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <!-- CPU Mode -->
+            <div class="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                <button id="btn-hq" class="text-[10px] font-bold px-2 py-1 rounded transition-colors bg-cyan-600 text-white">HQ</button>
+                <button id="btn-eco" class="text-[10px] font-bold px-2 py-1 rounded transition-colors text-slate-400">ECO (Pi)</button>
+            </div>
+
+            <!-- Presets -->
+            <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                <span class="text-[10px] text-slate-400 uppercase font-bold px-2">Preset</span>
+                <select id="preset-select" class="bg-slate-900 text-cyan-400 text-xs font-bold rounded p-1 outline-none border-none min-w-[100px]">
+                    <!-- Populated by JS -->
+                </select>
+            </div>
+
+            <!-- Hold Btn -->
+            <button id="btn-hold" class="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700">
+                Hold: OFF
+            </button>
+        </div>
+    </header>
+
+    <!-- Overlay start -->
+    <div id="start-overlay" class="fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center">
+        <button id="btn-start-audio" class="px-8 py-4 bg-cyan-500 text-black font-black text-xl rounded-full hover:scale-105 transition-transform shadow-[0_0_30px_cyan]">
+            CLICK TO START AUDIO
+        </button>
+    </div>
+
+    <main class="container mx-auto p-4 lg:p-6 space-y-6">
+        
+        <!-- Controls Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            <!-- 1. OSCILLATOR -->
+            <div class="md:col-span-3 bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
+                <h2 class="text-sm font-bold text-cyan-500 mb-4 tracking-widest uppercase">Oscillator</h2>
+                <div class="space-y-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Waveform</label>
+                        <select id="osc-type" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg p-2.5 outline-none">
+                            <option value="sine">Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-center pt-2" id="knob-container-detune">
+                        <!-- Knob Detune injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. FILTER & LFO -->
+            <div class="md:col-span-5 bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+                <h2 class="text-sm font-bold text-purple-500 mb-4 tracking-widest uppercase">Filter & LFO</h2>
+                
+                <div class="flex flex-wrap gap-4 justify-around">
+                     <div class="w-32 mb-2">
+                        <select id="filter-type" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded p-2 outline-none">
+                            <option value="lowpass">Low Pass</option>
+                            <option value="highpass">High Pass</option>
+                            <option value="bandpass">Band Pass</option>
+                        </select>
+                     </div>
+                     <div id="knob-cutoff"></div>
+                     <div id="knob-res"></div>
+                     <div id="knob-envamt"></div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-slate-800">
+                    <div class="flex gap-2 items-center mb-2 justify-center">
+                         <span class="text-[10px] text-slate-500 font-bold uppercase">LFO Dest</span>
+                         <select id="lfo-target" class="bg-slate-800 text-purple-400 text-xs font-bold rounded p-1 outline-none border border-slate-700">
+                             <option value="pitch">Pitch</option>
+                             <option value="cutoff">Cutoff</option>
+                             <option value="amp">Amp</option>
+                         </select>
+                    </div>
+                    <div class="flex justify-around">
+                        <div id="knob-lfo-rate"></div>
+                        <div id="knob-lfo-depth"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. ENVELOPE -->
+            <div class="md:col-span-4 bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                <h2 class="text-sm font-bold text-emerald-500 mb-4 tracking-widest uppercase">Amp Envelope</h2>
+                <div class="flex justify-between items-end h-40 pb-2 gap-2">
+                    <!-- Sliders injected by JS or hardcoded below -->
+                    <div class="slider-group vertical">
+                        <label>A</label>
+                        <input type="range" id="env-atk" min="0.01" max="2" step="0.01">
+                        <span id="val-env-atk">0.1</span>
+                    </div>
+                    <div class="slider-group vertical">
+                        <label>D</label>
+                        <input type="range" id="env-dec" min="0.1" max="2" step="0.01">
+                        <span id="val-env-dec">0.3</span>
+                    </div>
+                    <div class="slider-group vertical">
+                        <label>S</label>
+                        <input type="range" id="env-sus" min="0" max="1" step="0.01">
+                        <span id="val-env-sus">0.5</span>
+                    </div>
+                    <div class="slider-group vertical">
+                        <label>R</label>
+                        <input type="range" id="env-rel" min="0.1" max="5" step="0.01">
+                        <span id="val-env-rel">0.8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. GRANULAR CLOUD -->
+            <div class="md:col-span-6 bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+                <div class="flex justify-between items-center mb-4">
+                     <h2 class="text-sm font-bold text-yellow-500 tracking-widest uppercase">Granular Cloud</h2>
+                     <button id="btn-granular-toggle" class="text-[10px] px-2 py-1 rounded font-bold uppercase bg-slate-800 text-slate-500">Bypass</button>
+                </div>
+                <div class="flex justify-around items-center">
+                    <div id="knob-gran-mix"></div>
+                    <div id="knob-gran-size"></div>
+                    <div id="knob-gran-density"></div>
+                    <div id="knob-gran-spread"></div>
+                    <div id="knob-gran-fb"></div>
+                </div>
+            </div>
+
+            <!-- 5. DELAY -->
+            <div class="md:col-span-6 bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                <div class="flex justify-between items-center mb-4">
+                     <h2 class="text-sm font-bold text-indigo-500 tracking-widest uppercase">Pitch Quantized Delay</h2>
+                     <button id="btn-delay-toggle" class="text-[10px] px-2 py-1 rounded font-bold uppercase bg-slate-800 text-slate-500">Bypass</button>
+                </div>
+                <div class="flex flex-col gap-4">
+                    <div class="flex gap-2 justify-center">
+                        <select id="delay-key" class="bg-slate-800 text-indigo-400 text-xs font-bold rounded p-1 outline-none border border-slate-700"></select>
+                        <select id="delay-scale" class="bg-slate-800 text-indigo-400 text-xs font-bold rounded p-1 outline-none border border-slate-700"></select>
+                    </div>
+                    <div class="flex justify-around items-center">
+                        <div id="knob-delay-time"></div>
+                        <div id="knob-delay-fb"></div>
+                        <div id="knob-delay-prand"></div>
+                        <div id="knob-delay-mix"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. MASTER / REVERB -->
+            <div class="md:col-span-12 bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-pink-500"></div>
+                <h2 class="text-sm font-bold text-pink-500 mb-4 tracking-widest uppercase">Master Reverb</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-2">
+                        <button class="btn-verb text-xs py-2 rounded font-bold capitalize transition-colors bg-pink-600 text-white" data-type="hall">Hall</button>
+                        <button class="btn-verb text-xs py-2 rounded font-bold capitalize transition-colors bg-slate-800 text-slate-400" data-type="shimmer">Shimmer</button>
+                        <button class="btn-verb text-xs py-2 rounded font-bold capitalize transition-colors bg-slate-800 text-slate-400" data-type="off">Off</button>
+                    </div>
+                    <div class="flex justify-around items-center">
+                        <div id="knob-verb-mix"></div>
+                        <div id="knob-master-vol"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. LIVE INPUT & RECORDER -->
+            <div class="md:col-span-6 bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-lg relative overflow-hidden flex flex-col gap-4">
+                <div class="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+                <h2 class="text-sm font-bold text-orange-500 tracking-widest uppercase">Live Input</h2>
+                <button id="btn-input-toggle" class="w-full py-2 rounded font-bold text-xs uppercase tracking-wide bg-slate-800 text-slate-400">Enable Mic/Line</button>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-slate-500 font-bold"><span>GAIN</span><span id="val-input-gain">50%</span></div>
+                    <input type="range" id="input-gain" min="0" max="2" step="0.01" value="0.5" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500">
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-400 font-bold uppercase">Send to FX</span>
+                    <input type="checkbox" id="input-fx-send" checked class="w-4 h-4 accent-orange-500">
+                </div>
+                <canvas id="vu-meter" width="200" height="10" class="w-full h-3 rounded bg-slate-950 mt-1"></canvas>
+            </div>
+
+            <div class="md:col-span-6 bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-lg relative overflow-hidden flex flex-col gap-4">
+                <div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                <div class="flex justify-between items-center">
+                     <h2 class="text-sm font-bold text-red-500 tracking-widest uppercase">Tape Recorder</h2>
+                     <span id="rec-status" class="font-mono text-red-500 text-xs">0:00</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-rec" class="py-3 rounded-lg font-bold text-xs bg-slate-800 text-slate-300">REC</button>
+                    <button id="btn-play" class="py-3 rounded-lg font-bold text-xs bg-slate-800 text-slate-300" disabled>PLAY</button>
+                    <button id="btn-clear" class="py-3 rounded-lg font-bold text-xs bg-slate-800 text-slate-300" disabled>CLEAR</button>
+                </div>
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-xs text-slate-400 font-bold uppercase">Loop Playback</span>
+                    <input type="checkbox" id="rec-loop" class="w-4 h-4 accent-green-500">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- KEYBOARD -->
+        <div class="pt-4 pb-10">
+            <div id="keyboard-container" class="relative h-48 w-full max-w-4xl mx-auto select-none bg-slate-900 p-2 rounded-xl shadow-2xl border-t-4 border-slate-700 flex justify-center">
+                <!-- Keys injected here -->
+            </div>
+            <div class="text-center mt-4 text-slate-600 text-xs">
+                Playing with QWERTY? Try keys: A W S E D F T G Y H U J K
+            </div>
+        </div>
+
+    </main>
+
+    <script src="main.js"></script>
+</body>
 </html>
