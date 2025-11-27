@@ -25,6 +25,7 @@ export interface DelayParams {
 }
 
 export interface SynthParams {
+  performanceMode: 'HQ' | 'Eco'; // RPi Optimization
   oscillator: {
     type: Waveform;
     detune: number; // cents

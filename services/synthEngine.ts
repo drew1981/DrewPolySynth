@@ -1,19 +1,19 @@
 
 import { SynthParams, DelayParams, MusicalKey, ScaleMode } from '../types';
-import { SCALES, MUSICAL_KEYS } from '../constants';
+import { SCALES, MUSICAL_KEYS, ECO_MAX_VOICES, HQ_MAX_VOICES } from '../constants';
 
 interface Grain {
-    bufferIndex: number; // Start index in the buffer
-    position: number;    // Current playback position relative to start
-    speed: number;       // Playback speed
-    duration: number;    // Total duration in samples
-    pan: number;         // -1 to 1
+    bufferIndex: number;
+    position: number;
+    speed: number;
+    duration: number;
+    pan: number;
 }
 
 interface DelayGrain {
     bufferIndex: number;
     position: number;
-    speed: number; // For pitch shift
+    speed: number;
     duration: number;
     pan: number;
     gain: number;
@@ -26,7 +26,7 @@ export class SynthEngine {
   private dryNode: GainNode;
   private wetNode: GainNode;
   private compressor: DynamicsCompressorNode;
-  private analyser: AnalyserNode; // For VU Meter
+  private analyser: AnalyserNode;
   private recorderDest: MediaStreamAudioDestinationNode;
   private mediaRecorder: MediaRecorder | null = null;
   private recordedChunks: Blob[] = [];
@@ -45,7 +45,7 @@ export class SynthEngine {
   private delayNode: ScriptProcessorNode;
   private delayBuffer: Float32Array;
   private delayWriteIndex: number = 0;
-  private activeDelayGrains: DelayGrain[] = []; // Used for "grains" of delay for pitch shifting
+  private activeDelayGrains: DelayGrain[] = [];
   private delayTimer: number = 0;
   private delayDry: GainNode;
   private delayWet: GainNode;
@@ -53,18 +53,19 @@ export class SynthEngine {
   // Live Input
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private inputGain: GainNode;
-  private inputSendToFx: GainNode; // Controls amount sent to Reverb
-  private inputDry: GainNode; // Controls amount sent to Dry bus
+  private inputSendToFx: GainNode;
+  private inputDry: GainNode;
 
   // Active Voices
   private activeVoices: Map<number, Voice> = new Map();
-  private heldNotes: Set<number> = new Set(); // For HOLD functionality
+  private heldNotes: Set<number> = new Set();
   private hallBuffer: AudioBuffer | null = null;
   private shimmerBuffer: AudioBuffer | null = null;
   
   // State
   private params: SynthParams;
   public isHoldEnabled: boolean = false;
+  private voiceDestination: GainNode;
 
   constructor(initialParams: SynthParams) {
     this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -97,15 +98,13 @@ export class SynthEngine {
     this.delayDry = this.ctx.createGain();
     this.delayWet = this.ctx.createGain();
 
-    // Initialize Granular Processor
-    // Buffer size 4096 gives decent performance/latency balance for script processor
+    // Initialize ScriptProcessors
     this.granularNode = this.ctx.createScriptProcessor(4096, 2, 2); 
-    this.granularBuffer = new Float32Array(this.ctx.sampleRate * 2); // 2 seconds buffer
+    this.granularBuffer = new Float32Array(this.ctx.sampleRate * 2); 
     this.granularNode.onaudioprocess = this.processGranular.bind(this);
 
-    // Initialize Delay Processor
     this.delayNode = this.ctx.createScriptProcessor(4096, 2, 2);
-    this.delayBuffer = new Float32Array(this.ctx.sampleRate * 4); // 4 seconds buffer
+    this.delayBuffer = new Float32Array(this.ctx.sampleRate * 4);
     this.delayNode.onaudioprocess = this.processDelay.bind(this);
 
     // Input Section
@@ -115,41 +114,35 @@ export class SynthEngine {
     this.inputDry = this.ctx.createGain();
 
     // --- Routing Topology ---
-    // Voices sum to a main bus
     const voiceSum = this.ctx.createGain();
     this.voiceDestination = voiceSum;
 
-    // CHAIN: Voices -> Granular -> Delay -> Reverb/Dry -> Compressor -> Master
-
     // 1. Voice to Granular
-    voiceSum.connect(this.granularDry); // Dry path over Granular
-    voiceSum.connect(this.granularNode); // Wet path into Granular
+    voiceSum.connect(this.granularDry);
+    voiceSum.connect(this.granularNode);
     this.granularNode.connect(this.granularWet);
 
-    // 2. Granular Output (Mix of Dry + Wet) to Delay
-    // We create a "Granular Output Bus"
+    // 2. Granular Output to Delay
     const granularOutput = this.ctx.createGain();
     this.granularDry.connect(granularOutput);
     this.granularWet.connect(granularOutput);
 
-    // 3. Granular Output to Delay
-    granularOutput.connect(this.delayDry); // Dry path over Delay
-    granularOutput.connect(this.delayNode); // Wet path into Delay
+    granularOutput.connect(this.delayDry);
+    granularOutput.connect(this.delayNode);
     this.delayNode.connect(this.delayWet);
 
-    // 4. Delay Output (Mix of Dry + Wet) to Reverb Section
+    // 3. Delay Output to Reverb / Final Dry
     const delayOutput = this.ctx.createGain();
     this.delayDry.connect(delayOutput);
     this.delayWet.connect(delayOutput);
 
-    // 5. Delay Output to Reverb / Final Dry
     delayOutput.connect(this.dryNode);
     delayOutput.connect(this.reverbNode);
 
     // Reverb -> WetNode
     this.reverbNode.connect(this.wetNode);
     
-    // Sum Dry (Synth+Granular+Delay) and Wet (Reverb) to Compressor
+    // Sum to Compressor
     this.dryNode.connect(this.compressor);
     this.wetNode.connect(this.compressor);
     
@@ -161,59 +154,41 @@ export class SynthEngine {
     // Input Routing
     this.inputGain.connect(this.inputDry);
     this.inputGain.connect(this.inputSendToFx);
-    
-    // Input sends go to Reverb directly for now (could route to Granular too)
     this.inputDry.connect(this.compressor); 
     this.inputSendToFx.connect(this.reverbNode); 
 
-    // Effects
+    // Effects Init
     this.generateReverbBuffers();
     this.updateReverbState();
     this.updateGranularState();
     this.updateDelayState();
   }
 
-  // Destination for all synth voices
-  private voiceDestination: GainNode;
-
   private processGranular(e: AudioProcessingEvent) {
-      const inputL = e.inputBuffer.getChannelData(0);
-      const inputR = e.inputBuffer.getChannelData(1); // Assuming stereo input if available, else duplicate
-      const outputL = e.outputBuffer.getChannelData(0);
-      const outputR = e.outputBuffer.getChannelData(1);
-      const len = inputL.length;
-      const { grainSize, density, spread, feedback, enabled } = this.params.granular;
-
-      if (!enabled) {
-           for (let i = 0; i < len; i++) {
-              // Still record to buffer for seamless enable
-              const monoIn = (inputL[i] + (inputR ? inputR[i] : inputL[i])) * 0.5;
-              this.granularBuffer[this.granularWriteIndex] = monoIn;
-              this.granularWriteIndex = (this.granularWriteIndex + 1) % this.granularBuffer.length;
-              outputL[i] = 0;
-              outputR[i] = 0;
-          }
-          this.activeGrains = [];
+      if (!this.params.granular.enabled) {
+          // Hard Bypass for CPU saving
+          const outputL = e.outputBuffer.getChannelData(0);
+          const outputR = e.outputBuffer.getChannelData(1);
+          outputL.fill(0);
+          outputR.fill(0);
           return;
       }
 
+      const inputL = e.inputBuffer.getChannelData(0);
+      const inputR = e.inputBuffer.getChannelData(1); 
+      const outputL = e.outputBuffer.getChannelData(0);
+      const outputR = e.outputBuffer.getChannelData(1);
+      const len = inputL.length;
+      const { grainSize, density, spread, feedback } = this.params.granular;
+
       const sampleRate = this.ctx.sampleRate;
-      
-      // More aggressive density mapping:
-      // Density 1.0 -> 1ms interval (very dense cloud)
-      // Density 0.0 -> 200ms interval
       const minInterval = sampleRate * 0.001; 
       const maxInterval = sampleRate * 0.2;
       const spawnInterval = maxInterval - (Math.pow(density, 0.5) * (maxInterval - minInterval));
-      
       const grainDurationSamples = Math.floor(grainSize * sampleRate);
 
       for (let i = 0; i < len; i++) {
           const monoIn = (inputL[i] + (inputR ? inputR[i] : inputL[i])) * 0.5;
-          
-          // Write with feedback
-          // Limit feedback to avoid explosion
-          let fbSample = 0; // Calculated below from output
           
           this.granularBuffer[this.granularWriteIndex] = monoIn;
           
@@ -233,22 +208,16 @@ export class SynthEngine {
               if (readIdx < 0) readIdx += this.granularBuffer.length;
               
               const sample = this.granularBuffer[readIdx];
-              
-              // Parabolic Window for smoother, punchier grains
-              // 4 * x * (1 - x) is a fast parabola
               const progress = grain.position / grain.duration;
               const window = 4 * progress * (1 - progress); 
-              
               const pannedSample = sample * window;
               
-              // Simple Panning
               currentSampleL += pannedSample * (1 - Math.max(0, grain.pan));
               currentSampleR += pannedSample * (1 + Math.min(0, grain.pan));
 
               grain.position += grain.speed;
           }
 
-          // Apply feedback from current output back into buffer
           if (feedback > 0) {
               const safeFeedback = Math.min(0.95, feedback);
               this.granularBuffer[this.granularWriteIndex] += (currentSampleL + currentSampleR) * 0.5 * safeFeedback;
@@ -262,18 +231,13 @@ export class SynthEngine {
           // Spawn Logic
           this.grainSpawnTimer--;
           if (this.grainSpawnTimer <= 0) {
-              // Add randomness to interval
               this.grainSpawnTimer = spawnInterval * (0.5 + Math.random());
-              
-              // "Spray": Randomize start position based on grain size and density
-              // Higher density/spread = more spray
               const sprayAmount = spread * sampleRate * 0.5; 
               const offset = Math.floor(Math.random() * sprayAmount);
               
               let startIdx = this.granularWriteIndex - offset;
               if (startIdx < 0) startIdx += this.granularBuffer.length;
               
-              // Pitch jitter for thick clouds
               const pitchJitter = 1.0 + (Math.random() * 0.05 - 0.025) * spread;
 
               this.activeGrains.push({
@@ -288,43 +252,31 @@ export class SynthEngine {
   }
 
   private processDelay(e: AudioProcessingEvent) {
+      if (!this.params.delay.enabled) {
+          const outputL = e.outputBuffer.getChannelData(0);
+          const outputR = e.outputBuffer.getChannelData(1);
+          outputL.fill(0);
+          outputR.fill(0);
+          return;
+      }
+
       const inputL = e.inputBuffer.getChannelData(0);
       const inputR = e.inputBuffer.getChannelData(1);
       const outputL = e.outputBuffer.getChannelData(0);
       const outputR = e.outputBuffer.getChannelData(1);
       const len = inputL.length;
-      const { enabled, time, feedback, pitchRandom, rootKey, scale } = this.params.delay;
-
-      if (!enabled) {
-          for(let i=0; i<len; i++) {
-              outputL[i] = 0; outputR[i] = 0;
-              // Pass through to keep buffer warm? Not strictly necessary for delay
-          }
-          return;
-      }
+      const { time, feedback, pitchRandom, rootKey, scale } = this.params.delay;
 
       const sampleRate = this.ctx.sampleRate;
       const delaySamples = Math.floor(time * sampleRate);
       
-      // We implement a "Grain Delay" logic where every DelayTime interval, 
-      // a new "Grain" (Echo) starts playing from the buffer history.
-      // This allows us to pitch-shift the echo by changing playback speed.
-      
-      // Determine allowed pitch ratios based on Scale
-      const rootIndex = MUSICAL_KEYS.indexOf(rootKey); // Just gets 0-11 index
       const allowedIntervals = SCALES[scale];
 
       const getRandomSpeed = () => {
           if (pitchRandom <= 0.05) return 1.0;
-          
-          // Should we shift? 
           if (Math.random() > pitchRandom) return 1.0;
-
-          // Pick random interval
           const interval = allowedIntervals[Math.floor(Math.random() * allowedIntervals.length)];
-          // Occasionally shift octave up/down
           const octave = Math.random() > 0.7 ? (Math.random() > 0.5 ? 12 : -12) : 0;
-          
           const totalSemitones = interval + octave;
           return Math.pow(2, totalSemitones / 12);
       };
@@ -332,10 +284,8 @@ export class SynthEngine {
       for (let i = 0; i < len; i++) {
           const monoIn = (inputL[i] + (inputR ? inputR[i] : inputL[i])) * 0.5;
           
-          // Write Input to Buffer
           this.delayBuffer[this.delayWriteIndex] = monoIn;
 
-          // Sum active echoes
           let outL = 0;
           let outR = 0;
 
@@ -351,23 +301,18 @@ export class SynthEngine {
               if (readIdx < 0) readIdx += this.delayBuffer.length;
               
               const sample = this.delayBuffer[readIdx];
-              
-              // Crossfade Window (Trapezoid or sine) to avoid clicks at start/end of echo
-              // Echo duration is roughly delayTime. 
               const progress = grain.position / grain.duration;
               let window = 1;
               if (progress < 0.1) window = progress / 0.1;
               if (progress > 0.9) window = (1 - progress) / 0.1;
 
               const panned = sample * window * grain.gain;
-              
               outL += panned * (1 - Math.max(0, grain.pan));
               outR += panned * (1 + Math.min(0, grain.pan));
 
               grain.position += grain.speed;
           }
           
-          // Feedback: Inject output back into buffer at write head
           if (feedback > 0) {
              const fb = (outL + outR) * 0.5 * feedback;
              this.delayBuffer[this.delayWriteIndex] += fb;
@@ -378,21 +323,13 @@ export class SynthEngine {
 
           this.delayWriteIndex = (this.delayWriteIndex + 1) % this.delayBuffer.length;
 
-          // Spawn Echo logic
           this.delayTimer--;
           if (this.delayTimer <= 0) {
               this.delayTimer = delaySamples;
-              
-              // Start a new echo grain
-              // Read point is exactly delaySamples behind current write head
               let startIdx = this.delayWriteIndex - delaySamples;
               if (startIdx < 0) startIdx += this.delayBuffer.length;
               
               const speed = getRandomSpeed();
-              
-              // Duration needs to be slightly longer than delay time to allow crossfading if speed != 1
-              // If speed is 2 (octave up), we run through buffer twice as fast, so we need fewer source samples?
-              // Actually, simpler: Duration in OUTPUT samples should match delay time approx
               const duration = delaySamples; 
 
               this.activeDelayGrains.push({
@@ -400,7 +337,7 @@ export class SynthEngine {
                   position: 0,
                   speed: speed,
                   duration: duration,
-                  pan: (Math.random() * 0.4 - 0.2), // Slight stereo drift
+                  pan: (Math.random() * 0.4 - 0.2), 
                   gain: 1.0 
               });
           }
@@ -449,6 +386,13 @@ export class SynthEngine {
     const oldParams = this.params;
     this.params = newParams;
 
+    // Trigger Reverb Regeneration if Performance Mode Changed
+    if (oldParams.performanceMode !== newParams.performanceMode) {
+        this.generateReverbBuffers();
+        // Force update assignment
+        this.updateReverbState();
+    }
+
     this.masterGain.gain.setTargetAtTime(newParams.master.gain, this.ctx.currentTime, 0.1);
     
     if (oldParams.master.reverbMix !== newParams.master.reverbMix || 
@@ -471,6 +415,7 @@ export class SynthEngine {
       const { enabled, mix } = this.params.granular;
       const t = this.ctx.currentTime;
       
+      // We also bypass inside processGranular, but gain staging ensures smooth transition
       if (enabled) {
           this.granularDry.gain.setTargetAtTime(1 - mix, t, 0.1);
           this.granularWet.gain.setTargetAtTime(mix, t, 0.1);
@@ -505,13 +450,24 @@ export class SynthEngine {
         this.reverbNode.buffer = buffer;
       }
       this.wetNode.gain.setTargetAtTime(reverbMix, this.ctx.currentTime, 0.1);
-      // We don't drop dry completely so that the core sound remains
       this.dryNode.gain.setTargetAtTime(1 - (reverbMix * 0.4), this.ctx.currentTime, 0.1); 
     }
   }
 
   public playNote(noteIndex: number, frequency: number) {
     this.resumeContext();
+
+    // RPi Optimization: Max Voices
+    const maxVoices = this.params.performanceMode === 'Eco' ? ECO_MAX_VOICES : HQ_MAX_VOICES;
+
+    // Voice Stealing: If we are at limit, stop the oldest voice (first inserted)
+    if (this.activeVoices.size >= maxVoices) {
+        // Map iterators yield in insertion order
+        const oldestNoteIndex = this.activeVoices.keys().next().value;
+        if (oldestNoteIndex !== undefined) {
+             this.stopNote(oldestNoteIndex);
+        }
+    }
 
     if (this.activeVoices.has(noteIndex)) {
         this.activeVoices.get(noteIndex)?.stop(); 
@@ -607,8 +563,14 @@ export class SynthEngine {
 
   // --- Reverb Generation ---
   private generateReverbBuffers() {
-    this.hallBuffer = this.createImpulse(2.0, 2.0, false);
-    this.shimmerBuffer = this.createImpulse(4.0, 1.2, true);
+    const isEco = this.params.performanceMode === 'Eco';
+    
+    // RPi Optimization: Shorter Impulse Responses in Eco Mode
+    const hallDecay = isEco ? 1.2 : 2.5; 
+    const shimmerDecay = isEco ? 2.0 : 4.0;
+    
+    this.hallBuffer = this.createImpulse(hallDecay, hallDecay, false);
+    this.shimmerBuffer = this.createImpulse(shimmerDecay, 1.2, true);
   }
 
   private createImpulse(duration: number, decay: number, shimmer: boolean): AudioBuffer {

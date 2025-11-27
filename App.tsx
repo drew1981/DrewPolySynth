@@ -37,16 +37,16 @@ const App: React.FC = () => {
       }
   }, [isHold]);
 
-  const updateParam = useCallback((section: keyof SynthParams, key: string, value: any) => {
+  const updateParam = useCallback((section: Exclude<keyof SynthParams, 'performanceMode'>, key: string, value: any) => {
     setParams(prev => ({
         ...prev,
         [section]: {
-            ...prev[section],
+            ...(prev[section] as object),
             [key]: value
         }
     }));
     // Determine if custom
-    const match = PRESETS.find(p => JSON.stringify(p.params) === JSON.stringify({...params, [section]: {...params[section], [key]: value}}));
+    const match = PRESETS.find(p => JSON.stringify(p.params) === JSON.stringify({...params, [section]: {...(params[section] as object), [key]: value}}));
     setCurrentPreset(match ? match.name : "Custom");
   }, [params]);
 
@@ -82,6 +82,22 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-4">
+            {/* Performance Mode Switch (RPi Optimization) */}
+            <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                 <button
+                    onClick={() => setParams(p => ({...p, performanceMode: 'HQ'}))}
+                    className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${params.performanceMode === 'HQ' ? 'bg-cyan-600 text-white' : 'text-slate-400'}`}
+                 >
+                     HQ
+                 </button>
+                 <button
+                    onClick={() => setParams(p => ({...p, performanceMode: 'Eco'}))}
+                    className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${params.performanceMode === 'Eco' ? 'bg-green-600 text-white' : 'text-slate-400'}`}
+                 >
+                     ECO (Pi)
+                 </button>
+            </div>
+
             {/* Presets */}
             <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
                 <span className="text-[10px] text-slate-400 uppercase font-bold px-2">Preset</span>

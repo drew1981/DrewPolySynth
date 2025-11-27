@@ -1,6 +1,10 @@
 
 import { NoteConfig, Preset, SynthParams, MusicalKey, ScaleMode } from './types';
 
+// RPi Performance Tuning
+export const ECO_MAX_VOICES = 6; // Safe for Pi 3/4
+export const HQ_MAX_VOICES = 16; // Desktop
+
 // Frequencies for C3 to B4
 export const NOTES: NoteConfig[] = [
   { note: 'C', octave: 3, frequency: 130.81, isSharp: false },
@@ -47,6 +51,7 @@ export const SCALES: Record<ScaleMode, number[]> = {
 };
 
 export const DEFAULT_PARAMS: SynthParams = {
+  performanceMode: 'HQ',
   oscillator: { type: 'sawtooth', detune: 0 },
   filter: { type: 'lowpass', cutoff: 2000, resonance: 5, envAmount: 1000 },
   envelope: { attack: 0.1, decay: 0.3, sustain: 0.5, release: 0.8 },
@@ -64,6 +69,7 @@ export const PRESETS: Preset[] = [
     {
         name: "Soft Pad",
         params: {
+            performanceMode: 'HQ',
             oscillator: { type: 'triangle', detune: 5 },
             filter: { type: 'lowpass', cutoff: 600, resonance: 2, envAmount: 400 },
             envelope: { attack: 0.8, decay: 1.5, sustain: 0.6, release: 2.0 },
@@ -76,6 +82,7 @@ export const PRESETS: Preset[] = [
     {
         name: "Granular Cloud",
         params: {
+            performanceMode: 'HQ',
             oscillator: { type: 'sine', detune: 0 },
             filter: { type: 'bandpass', cutoff: 1500, resonance: 1, envAmount: 0 },
             envelope: { attack: 0.5, decay: 0.5, sustain: 1.0, release: 2.0 },
@@ -88,6 +95,7 @@ export const PRESETS: Preset[] = [
     {
         name: "Rhythmic Delay",
         params: {
+            performanceMode: 'HQ',
             oscillator: { type: 'square', detune: -5 },
             filter: { type: 'lowpass', cutoff: 1200, resonance: 4, envAmount: 500 },
             envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.5 },
