@@ -1,51 +1,48 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Range Slider Styles */
+/* Custom Range Slider Styles - Minimalist/Stealth */
+
+/* The track (handled mostly by bg classes, but reset here) */
 input[type=range] {
     -webkit-appearance: none;
-    background: transparent;
+    background: #262626; /* neutral-800 */
 }
 
+/* The Thumb */
 input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    margin-top: -4px; /* Align vertical center if needed, or track height adjustment */
+    box-shadow: 0 0 5px rgba(255,255,255,0.5);
+    border: 2px solid #000;
+}
+
+input[type=range]::-moz-range-thumb {
+    height: 12px;
+    width: 12px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(255,255,255,0.5);
+}
+
+/* The Track (Run) */
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: #262626;
+    border-radius: 2px;
 }
 
 input[type=range]:focus {
     outline: none;
-}
-
-/* Vertical Slider Container */
-.slider-group.vertical {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    width: 100%;
-}
-
-.slider-group.vertical label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #94a3b8;
-    text-transform: uppercase;
-    margin-bottom: 0.25rem;
-}
-
-.slider-group.vertical span {
-    font-size: 0.65rem;
-    color: #06b6d4;
-    font-family: monospace;
-    margin-top: 0.25rem;
-}
-
-.slider-group.vertical input[type=range] {
-    writing-mode: bt-lr; /* IE/Edge */
-    -webkit-appearance: slider-vertical; /* Webkit */
-    width: 8px;
-    height: 100px;
-    background: #1e293b;
-    border-radius: 4px;
-    cursor: pointer;
 }

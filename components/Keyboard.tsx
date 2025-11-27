@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { NOTES, KEYBOARD_MAP } from '../constants';
 
@@ -66,12 +67,10 @@ export const Keyboard: React.FC<Props> = ({ onNoteOn, onNoteOff }) => {
 
 
   return (
-    <div className="relative h-48 w-full max-w-4xl mx-auto select-none bg-slate-900 p-2 rounded-xl shadow-2xl border-t-4 border-slate-700">
+    <div className="relative h-48 w-full max-w-4xl mx-auto select-none bg-[#111] p-2 rounded border border-neutral-800">
         <div className="relative flex h-full w-full justify-center">
             {NOTES.map((note, i) => {
-                // Calculate position for visual rendering logic
-                // Simple implementation: render all as flex items, absolute position blacks
-                if (note.isSharp) return null; // We render sharps absolutely over the naturals
+                if (note.isSharp) return null; // Render sharps later
 
                 // Find if there is a sharp after this natural
                 const nextNote = NOTES[i + 1];
@@ -82,9 +81,11 @@ export const Keyboard: React.FC<Props> = ({ onNoteOn, onNoteOff }) => {
                     <div 
                         key={i}
                         className={`
-                            relative flex-1 bg-slate-100 border border-slate-300 rounded-b-md mx-[1px]
-                            active:bg-cyan-200 transition-colors duration-75
-                            ${isActive ? 'bg-cyan-300 shadow-[0_0_15px_cyan] z-10' : 'bg-slate-100'}
+                            relative flex-1 border-r border-b border-l border-black rounded-b-sm mx-[1px]
+                            transition-colors duration-75
+                            ${isActive 
+                                ? 'bg-white shadow-[0_0_20px_rgba(255,255,255,0.5)] z-10' 
+                                : 'bg-neutral-600 hover:bg-neutral-500'}
                         `}
                         onMouseDown={() => handleMouseDown(i, note.frequency)}
                         onMouseUp={() => handleMouseUp(i)}
@@ -92,15 +93,17 @@ export const Keyboard: React.FC<Props> = ({ onNoteOn, onNoteOff }) => {
                         onTouchStart={(e) => { e.preventDefault(); handleMouseDown(i, note.frequency); }}
                         onTouchEnd={(e) => { e.preventDefault(); handleMouseUp(i); }}
                     >
-                        <div className="absolute bottom-2 w-full text-center text-xs text-slate-400 font-bold pointer-events-none">
+                        <div className={`absolute bottom-2 w-full text-center text-[10px] font-bold pointer-events-none ${isActive ? 'text-black' : 'text-neutral-800'}`}>
                             {note.note}{note.octave}
                         </div>
-                        {/* Render Sharp Key if exists next to this */}
+                        {/* Render Sharp Key */}
                         {hasSharp && (
                             <div 
                                 className={`
-                                    absolute -right-3 top-0 w-6 h-28 z-20 rounded-b-md border border-slate-800
-                                    ${activeNotes.has(i + 1) ? 'bg-gradient-to-b from-cyan-600 to-cyan-800 shadow-[0_0_10px_cyan]' : 'bg-gradient-to-b from-slate-800 to-black'}
+                                    absolute -right-3 top-0 w-5 h-28 z-20 rounded-b-sm border border-black
+                                    ${activeNotes.has(i + 1) 
+                                        ? 'bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]' 
+                                        : 'bg-black'}
                                 `}
                                 onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(i + 1, nextNote.frequency); }}
                                 onMouseUp={(e) => { e.stopPropagation(); handleMouseUp(i + 1); }}
@@ -108,7 +111,6 @@ export const Keyboard: React.FC<Props> = ({ onNoteOn, onNoteOff }) => {
                                 onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown(i + 1, nextNote.frequency); }}
                                 onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseUp(i + 1); }}
                             >
-                                {/* Key hint for sharps usually tricky to place, skipping for clean UI */}
                             </div>
                         )}
                     </div>

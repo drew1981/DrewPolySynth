@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { SynthEngine } from '../services/synthEngine';
 
@@ -25,13 +26,11 @@ export const Recorder: React.FC<Props> = ({ engine }) => {
   const handleRecord = () => {
       if (!engine) return;
       if (isRecording) {
-          // Stop
           engine.stopRecording().then(() => {
               setIsRecording(false);
               setHasRecording(true);
           });
       } else {
-          // Start
           engine.clearRecording();
           engine.startRecording();
           setIsRecording(true);
@@ -66,56 +65,60 @@ export const Recorder: React.FC<Props> = ({ engine }) => {
   };
 
   return (
-    <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-lg relative overflow-hidden flex flex-col gap-4">
-        <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
-        <div className="flex justify-between items-center">
-             <h2 className="text-sm font-bold text-red-500 tracking-widest uppercase">Tape Recorder</h2>
-             <span className="font-mono text-red-500 text-xs">{isRecording ? 'REC ●' : formatTime(duration)}</span>
+    <div className="bg-[#111] rounded border border-neutral-800 p-4 flex flex-col gap-4">
+        <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+             <h2 className="text-xs font-bold text-neutral-500 tracking-[0.2em] uppercase">Tape Recorder</h2>
+             <span className={`font-mono text-xs font-bold ${isRecording ? 'text-white animate-pulse' : 'text-neutral-600'}`}>
+                 {isRecording ? '● REC' : formatTime(duration)}
+             </span>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
             <button 
                 onClick={handleRecord}
-                className={`py-3 rounded-lg font-bold text-xs flex justify-center items-center transition-all
-                    ${isRecording ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
+                className={`py-2 rounded border text-[10px] font-bold uppercase tracking-wider transition-all
+                    ${isRecording 
+                        ? 'bg-white text-black border-white' 
+                        : 'bg-transparent text-neutral-500 border-neutral-700 hover:text-white hover:border-neutral-500'}
                 `}
             >
-                <div className={`w-3 h-3 rounded-full mr-1 ${isRecording ? 'bg-white' : 'bg-red-500'}`}></div>
-                {isRecording ? 'STOP' : 'REC'}
+                {isRecording ? 'Stop' : 'Rec'}
             </button>
 
             <button 
                 onClick={handlePlay}
                 disabled={!hasRecording || isRecording}
-                className={`py-3 rounded-lg font-bold text-xs flex justify-center items-center transition-all disabled:opacity-50
-                    ${isPlaying ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
+                className={`py-2 rounded border text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-30 disabled:cursor-not-allowed
+                    ${isPlaying 
+                        ? 'bg-white text-black border-white' 
+                        : 'bg-transparent text-neutral-500 border-neutral-700 hover:text-white hover:border-neutral-500'}
                 `}
             >
-                {isPlaying ? 'STOP' : 'PLAY'}
+                {isPlaying ? 'Stop' : 'Play'}
             </button>
 
             <button 
                 onClick={handleClear}
                 disabled={isRecording}
-                className="bg-slate-800 text-slate-300 hover:bg-slate-700 py-3 rounded-lg font-bold text-xs disabled:opacity-50"
+                className="bg-transparent border border-neutral-700 text-neutral-500 hover:text-white hover:border-neutral-500 py-2 rounded text-[10px] font-bold uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed"
             >
-                CLEAR
+                Clear
             </button>
         </div>
 
-        <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-slate-400 font-bold uppercase">Loop Playback</span>
+        <div className="flex items-center justify-between">
+            <span className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">Loop Playback</span>
             <button 
                 onClick={() => setLoop(!loop)}
-                className={`w-10 h-5 rounded-full relative transition-colors ${loop ? 'bg-green-500' : 'bg-slate-700'}`}
+                className={`w-8 h-4 rounded-full relative transition-colors border border-neutral-700 ${loop ? 'bg-white border-white' : 'bg-transparent'}`}
             >
-                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${loop ? 'left-6' : 'left-1'}`}></div>
+                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all ${loop ? 'left-4.5 bg-black' : 'left-0.5 bg-neutral-600'}`}></div>
             </button>
         </div>
         
         {hasRecording && !isRecording && (
-            <div className="text-[10px] text-center text-slate-500 italic">
-                Take saved in memory.
+            <div className="text-[9px] text-center text-neutral-600 uppercase tracking-widest mt-1">
+                -- Tape Loaded --
             </div>
         )}
     </div>

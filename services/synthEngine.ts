@@ -81,7 +81,8 @@ export class SynthEngine {
     this.masterGain.gain.value = initialParams.master.gain;
 
     this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 512; // Increased resolution for visualizer
+    this.analyser.fftSize = 2048; // High resolution for spectrum analysis
+    this.analyser.smoothingTimeConstant = 0.85;
 
     this.recorderDest = this.ctx.createMediaStreamDestination();
 

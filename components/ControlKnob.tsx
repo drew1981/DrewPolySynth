@@ -24,6 +24,7 @@ export const ControlKnob: React.FC<Props> = ({ label, value, min, max, onChange,
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
+      e.preventDefault();
       const deltaY = startY.current - e.clientY;
       const range = max - min;
       const sensitivity = 200; // pixels for full range
@@ -55,46 +56,75 @@ export const ControlKnob: React.FC<Props> = ({ label, value, min, max, onChange,
   }, [isDragging, max, min, onChange, step]);
 
   // Visual calculation
-  const percentage = (value - min) / (max - min);
-  const rotation = -135 + (percentage * 270); // 270 degree range
+  // We want an arc from approx 135deg to 405deg (270deg total)
+  const range = max - min;
+  const pct = (value - min) / range;
+  
+  // SVG Config
+  const size = 60;
+  const strokeWidth = 3;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const arcLength = 0.75 * circumference; // 270 degrees is 75% of circle
+  const dashOffset = circumference - (pct * arcLength); // Draw 'pct' amount of the arc
+  
+  // Rotate so the gap is at the bottom
+  const rotationOffset = 135; 
 
   return (
-    <div className="flex flex-col items-center select-none group">
+    <div className="flex flex-col items-center justify-center gap-2 select-none group w-20">
       <div 
-        className="relative w-14 h-14 cursor-ns-resize"
+        className="relative cursor-ns-resize group-hover:scale-105 transition-transform"
+        style={{ width: size, height: size }}
         onMouseDown={handleMouseDown}
       >
-        {/* Outer Ring */}
-        <div className="absolute inset-0 rounded-full border-2 border-slate-700 bg-slate-800 shadow-inner"></div>
-        
-        {/* Active Ring Indicator (SVG) */}
-        <svg className="absolute inset-0 w-full h-full p-1 pointer-events-none transform -rotate-90">
+        <svg width={size} height={size} className="transform rotate-90">
+           {/* Background Track (Dark Grey) */}
+           <circle
+             cx={size/2} cy={size/2} r={radius}
+             fill="transparent"
+             stroke="#333333"
+             strokeWidth={strokeWidth}
+             strokeDasharray={`${arcLength} ${circumference}`}
+             transform={`rotate(${rotationOffset} ${size/2} ${size/2})`}
+             strokeLinecap="round"
+           />
+           
+           {/* Active Value (White) */}
+           <circle
+             cx={size/2} cy={size/2} r={radius}
+             fill="transparent"
+             stroke={isDragging ? '#ffffff' : '#e5e5e5'}
+             strokeWidth={strokeWidth}
+             strokeDasharray={`${arcLength} ${circumference}`}
+             strokeDashoffset={dashOffset * -1} 
+             /* Note: SVG dashoffset logic with gaps is tricky, simpler visual approach: */
+           />
+           {/* Re-drawing active arc on top accurately */}
              <circle
-               cx="24" cy="24" r="20"
-               fill="none"
-               stroke="#334155"
-               strokeWidth="4"
-             />
-             <circle
-               cx="24" cy="24" r="20"
-               fill="none"
-               stroke={isDragging ? '#22d3ee' : '#0891b2'}
-               strokeWidth="4"
-               strokeDasharray={`${percentage * 125}, 125`} 
-               strokeLinecap="round"
-             />
+             cx={size/2} cy={size/2} r={radius}
+             fill="transparent"
+             stroke={isDragging ? '#ffffff' : '#d4d4d4'}
+             strokeWidth={strokeWidth}
+             strokeDasharray={`${pct * arcLength} ${circumference}`}
+             transform={`rotate(${rotationOffset} ${size/2} ${size/2})`}
+             strokeLinecap="round"
+           />
         </svg>
 
-        {/* Knob Body */}
-        <div 
-            className="absolute top-2 left-2 w-10 h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-900 shadow-xl flex items-center justify-center transform transition-transform duration-75"
-            style={{ transform: `rotate(${rotation}deg)` }}
-        >
-            <div className="w-1 h-3 bg-white rounded-full absolute top-1 shadow-[0_0_5px_rgba(255,255,255,0.8)]"></div>
+        {/* Diamond / Indicator in center (optional styling from image) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {/* Small diamond or just value text */}
+             <div className={`w-1.5 h-1.5 transform rotate-45 border border-white ${isDragging ? 'bg-white' : 'bg-transparent'}`}></div>
         </div>
       </div>
-      <div className="mt-2 text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</div>
-      <div className="text-[10px] text-cyan-500 font-mono h-3">{value.toFixed(step < 1 ? 2 : 0)}</div>
+
+      <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest leading-none">{label}</span>
+          <span className="text-[10px] font-mono text-neutral-300 tabular-nums leading-none">
+            {value.toFixed(step < 1 ? 2 : 0)}
+          </span>
+      </div>
     </div>
   );
 };
