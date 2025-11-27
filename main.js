@@ -703,12 +703,9 @@ class SynthesizerUI {
     }
 
     init() {
-        // Start Overlay
-        document.getElementById('btn-start-audio').addEventListener('click', () => {
-            this.synth = new SynthEngine(this.params);
-            this.isStarted = true;
-            document.getElementById('start-overlay').classList.add('hidden');
-        });
+        // Initialize Engine Immediately
+        this.synth = new SynthEngine(this.params);
+        this.isStarted = true;
 
         // Initialize UI Components
         this.renderKeyboard();
