@@ -40,6 +40,7 @@ export class SynthEngine {
   private grainSpawnTimer: number = 0;
   private granularDry: GainNode;
   private granularWet: GainNode;
+  private MAX_GRAINS = 40; // Hard limit to prevent UI freezes
 
   // Delay Section
   private delayNode: ScriptProcessorNode;
@@ -233,21 +234,25 @@ export class SynthEngine {
           this.grainSpawnTimer--;
           if (this.grainSpawnTimer <= 0) {
               this.grainSpawnTimer = spawnInterval * (0.5 + Math.random());
-              const sprayAmount = spread * sampleRate * 0.5; 
-              const offset = Math.floor(Math.random() * sprayAmount);
               
-              let startIdx = this.granularWriteIndex - offset;
-              if (startIdx < 0) startIdx += this.granularBuffer.length;
-              
-              const pitchJitter = 1.0 + (Math.random() * 0.05 - 0.025) * spread;
+              // Only spawn if below MAX_GRAINS limit
+              if (this.activeGrains.length < this.MAX_GRAINS) {
+                  const sprayAmount = spread * sampleRate * 0.5; 
+                  const offset = Math.floor(Math.random() * sprayAmount);
+                  
+                  let startIdx = this.granularWriteIndex - offset;
+                  if (startIdx < 0) startIdx += this.granularBuffer.length;
+                  
+                  const pitchJitter = 1.0 + (Math.random() * 0.05 - 0.025) * spread;
 
-              this.activeGrains.push({
-                  bufferIndex: startIdx,
-                  position: 0,
-                  speed: pitchJitter, 
-                  duration: grainDurationSamples,
-                  pan: (Math.random() * 2 - 1) * spread
-              });
+                  this.activeGrains.push({
+                      bufferIndex: startIdx,
+                      position: 0,
+                      speed: pitchJitter, 
+                      duration: grainDurationSamples,
+                      pan: (Math.random() * 2 - 1) * spread
+                  });
+              }
           }
       }
   }
@@ -327,20 +332,24 @@ export class SynthEngine {
           this.delayTimer--;
           if (this.delayTimer <= 0) {
               this.delayTimer = delaySamples;
-              let startIdx = this.delayWriteIndex - delaySamples;
-              if (startIdx < 0) startIdx += this.delayBuffer.length;
               
-              const speed = getRandomSpeed();
-              const duration = delaySamples; 
+              // Only spawn if below MAX_GRAINS limit
+              if (this.activeDelayGrains.length < this.MAX_GRAINS) {
+                  let startIdx = this.delayWriteIndex - delaySamples;
+                  if (startIdx < 0) startIdx += this.delayBuffer.length;
+                  
+                  const speed = getRandomSpeed();
+                  const duration = delaySamples; 
 
-              this.activeDelayGrains.push({
-                  bufferIndex: startIdx,
-                  position: 0,
-                  speed: speed,
-                  duration: duration,
-                  pan: (Math.random() * 0.4 - 0.2), 
-                  gain: 1.0 
-              });
+                  this.activeDelayGrains.push({
+                      bufferIndex: startIdx,
+                      position: 0,
+                      speed: speed,
+                      duration: duration,
+                      pan: (Math.random() * 0.4 - 0.2), 
+                      gain: 1.0 
+                  });
+              }
           }
       }
   }
