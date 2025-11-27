@@ -81,7 +81,7 @@ export class SynthEngine {
     this.masterGain.gain.value = initialParams.master.gain;
 
     this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 256;
+    this.analyser.fftSize = 512; // Increased resolution for visualizer
 
     this.recorderDest = this.ctx.createMediaStreamDestination();
 
@@ -372,8 +372,12 @@ export class SynthEngine {
       this.inputSendToFx.gain.setTargetAtTime(target, this.ctx.currentTime, 0.1);
   }
 
-  public getAnalyserData(array: Uint8Array) {
+  public getAnalyserFrequencyData(array: Uint8Array) {
       this.analyser.getByteFrequencyData(array);
+  }
+
+  public getAnalyserTimeData(array: Uint8Array) {
+      this.analyser.getByteTimeDomainData(array);
   }
 
   public resumeContext() {
